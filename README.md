@@ -4,10 +4,12 @@ A very simple RevealJS plugin extension that adds support for switching the curs
 
 :warning: Requires Quarto Version 1.2.124 or later :warning:
 
+![](preview.webp)
+
 ## Installation
 
 ```
-$ quarto add quarto-ext/pointer
+quarto add quarto-ext/pointer
 ```
 
 This will install the extension under the `_extensions` subdirectory. If you're using version control, you will want to check in this directory.
@@ -38,12 +40,11 @@ You can control the color and appearance of the pointer by passing some addition
 | ```color``` | A CSS color name that provides the color used when the pointer is activated. Defaults to `red`. |
 | ```pointerSize``` | The size of the pointer in pixels (please do not include units). Defaults to `16`. |
 | ```alwaysVisible``` | Whether the pointer should always be visible, or disappear after it stops moving for a moment. Defaults to 'false'. |
+| ```trail``` | Whether the pointer should leave a smooth, tapered trailing streak while moving. Defaults to `false`. |
+| ```trailDuration``` | The duration of the trailing streak in milliseconds. Larger values produce longer trails. Defaults to `150`. |
+| ```trailSampling``` | Minimum movement in pixels before adding a new trail point. Higher values improve performance but can reduce smoothness. Defaults to `2`. |
+| ```trailMaxPoints``` | Maximum number of points stored for the trail. Once this limit is reached, the oldest points are discarded. Lower values cap memory usage and rendering work per frame; higher values allow longer, more detailed trails. Defaults to `80`. |
 
 ## Example
 
 View an example presentation at <https://quarto-ext.github.io/pointer/>. Use the 'q' to enable and disable the pointer.
-
-
-
-
-

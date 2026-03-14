@@ -9,7 +9,8 @@ format:
     preview-links: auto
     pointer:
       pointerSize: 18
-      color: '#32cd32'
+      color: '#4758AB'
+      trail: true
 revealjs-plugins:
   - pointer
 ---
