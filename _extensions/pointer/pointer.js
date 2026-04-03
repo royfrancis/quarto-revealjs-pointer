@@ -158,14 +158,48 @@ var RevealPointer = (function () {
    * @returns {boolean} Whether to append the point.
    */
   function shouldAppendTrailPoint(lastPoint, nextPoint, sampling) {
+    var dx;
+    var dy;
+
     if (!lastPoint) {
       return true;
     }
 
-    return (
-      Math.abs(lastPoint.x - nextPoint.x) > sampling ||
-      Math.abs(lastPoint.y - nextPoint.y) > sampling
-    );
+    dx = nextPoint.x - lastPoint.x;
+    dy = nextPoint.y - lastPoint.y;
+
+    return Math.sqrt(dx * dx + dy * dy) >= sampling;
+  }
+
+  /**
+   * Evaluate a Catmull-Rom spline point for a 2D + time sample.
+   *
+   * @param {{x:number,y:number,time:number}} p0
+   * @param {{x:number,y:number,time:number}} p1
+   * @param {{x:number,y:number,time:number}} p2
+   * @param {{x:number,y:number,time:number}} p3
+   * @param {number} t Parametric position in [0, 1].
+   * @returns {{x:number,y:number,time:number}} Interpolated point.
+   */
+  function catmullRomPoint(p0, p1, p2, p3, t) {
+    var t2 = t * t;
+    var t3 = t2 * t;
+
+    return {
+      x:
+        0.5 *
+        ((2 * p1.x) +
+          (-p0.x + p2.x) * t +
+          (2 * p0.x - 5 * p1.x + 4 * p2.x - p3.x) * t2 +
+          (-p0.x + 3 * p1.x - 3 * p2.x + p3.x) * t3),
+      y:
+        0.5 *
+        ((2 * p1.y) +
+          (-p0.y + p2.y) * t +
+          (2 * p0.y - 5 * p1.y + 4 * p2.y - p3.y) * t2 +
+          (-p0.y + 3 * p1.y - 3 * p2.y + p3.y) * t3),
+      time: p1.time + (p2.time - p1.time) * t,
+    };
   }
 
   function createRevealPointerPlugin() {
@@ -258,34 +292,52 @@ var RevealPointer = (function () {
     }
 
     /**
-     * Insert midpoint samples so trail polygons appear smooth at lower sampling rates.
+     * Build a spline-densified trail so curved pointer motion remains smooth.
      *
      * @param {Array<{x:number,y:number,time:number}>} points Input points.
-     * @returns {Array<{x:number,y:number,time:number}>} Densified points.
+     * @returns {Array<{x:number,y:number,time:number}>} Smoothed points.
      */
     function smoothedPoints(points) {
-      var dense = [];
+      var smooth = [];
       var i;
       var p0;
       var p1;
+      var p2;
+      var p3;
+      var dx;
+      var dy;
+      var distance;
+      var steps;
+      var s;
+      var t;
 
       if (!points.length) {
-        return dense;
+        return smooth;
       }
 
-      dense.push(points[0]);
-      for (i = 1; i < points.length; i += 1) {
-        p0 = points[i - 1];
+      if (points.length < 3) {
+        return points.slice();
+      }
+
+      smooth.push(points[0]);
+      for (i = 0; i < points.length - 1; i += 1) {
+        p0 = i > 0 ? points[i - 1] : points[i];
         p1 = points[i];
-        dense.push({
-          x: (p0.x + p1.x) * 0.5,
-          y: (p0.y + p1.y) * 0.5,
-          time: (p0.time + p1.time) * 0.5,
-        });
-        dense.push(p1);
+        p2 = points[i + 1];
+        p3 = i + 2 < points.length ? points[i + 2] : points[i + 1];
+
+        dx = p2.x - p1.x;
+        dy = p2.y - p1.y;
+        distance = Math.sqrt(dx * dx + dy * dy);
+        steps = Math.max(1, Math.min(12, Math.ceil(distance / 2)));
+
+        for (s = 1; s <= steps; s += 1) {
+          t = s / steps;
+          smooth.push(catmullRomPoint(p0, p1, p2, p3, t));
+        }
       }
 
-      return dense;
+      return smooth;
     }
 
     /** Draw the tapered pointer trail for the current animation frame. */
