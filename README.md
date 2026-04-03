@@ -1,50 +1,57 @@
-# pointer
+# pointer ![build](https://github.com/royfrancis/quarto-revealjs-pointer/workflows/deploy/badge.svg)
 
-A very simple RevealJS plugin extension that adds support for switching the cursor to a 'pointer' style element while presenting.
+A Quarto revealjs plugin extension that adds a configurable presenter pointer with optional smooth trail rendering.
 
-:warning: Requires Quarto Version 1.2.124 or later :warning:
+Requires Quarto >= 1.2.198.
 
 ![](preview.webp)
 
 ## Installation
 
-```
-quarto add quarto-ext/pointer
+```bash
+quarto add royfrancis/quarto-revealjs-pointer
 ```
 
-This will install the extension under the `_extensions` subdirectory. If you're using version control, you will want to check in this directory.
+The extension is installed into the `_extensions` directory and should be committed to version control for reproducible builds.
 
 ## Usage
 
-Simply add the extension to the list of reveal plugins like:
+Add the plugin and configure it in document metadata:
 
-```
-title: My Presentation
+```yaml
+title: "My Presentation"
 format:
-    revealjs: default
+  revealjs:
     pointer:
-      - # set pointer configuration options here
+      key: "q"
+      color: "red"
+      pointerSize: 16
+      trail: false
 revealjs-plugins:
   - pointer
 ```
 
-By default, you can activate the pointer mode by pressing the 'q' key while viewing the presentation. When activated, a 16px red pointer will be used as a cursor. Press the 'q' key once again to reactivate the standard cursor.
+When `alwaysVisible` is `false` (default), press `q` to toggle pointer mode.
 
 ## Options
 
-You can control the color and appearance of the pointer by passing some additional options under a `pointer` key. 
+| Option | Type | Default | Description |
+| --- | --- | --- | --- |
+| `key` | string | `"q"` | Key used to toggle pointer mode. Unsupported values fallback to `q`. |
+| `color` | string | `"red"` | CSS color for pointer and trail. |
+| `pointerSize` | number | `16` | Pointer diameter in pixels (number only). |
+| `alwaysVisible` | boolean | `false` | Keep the pointer on screen without keyboard toggle. |
+| `trail` | boolean | `false` | Draw a smooth tapered trail while moving. |
+| `trailDuration` | number | `150` | Trail fade duration in milliseconds. |
+| `trailSampling` | number | `2` | Pixel threshold before adding a new trail point. |
+| `trailMaxPoints` | number | `80` | Maximum points retained for trail rendering. |
 
-| Option | Description |
-| --- | --- |
-| ```key``` |  What key should be used to activate and deactivate the pointer. Defaults to `q`. |
-| ```color``` | A CSS color name that provides the color used when the pointer is activated. Defaults to `red`. |
-| ```pointerSize``` | The size of the pointer in pixels (please do not include units). Defaults to `16`. |
-| ```alwaysVisible``` | Whether the pointer should always be visible, or disappear after it stops moving for a moment. Defaults to 'false'. |
-| ```trail``` | Whether the pointer should leave a smooth, tapered trailing streak while moving. Defaults to `false`. |
-| ```trailDuration``` | The duration of the trailing streak in milliseconds. Larger values produce longer trails. Defaults to `150`. |
-| ```trailSampling``` | Minimum movement in pixels before adding a new trail point. Higher values improve performance but can reduce smoothness. Defaults to `2`. |
-| ```trailMaxPoints``` | Maximum number of points stored for the trail. Once this limit is reached, the oldest points are discarded. Lower values cap memory usage and rendering work per frame; higher values allow longer, more detailed trails. Defaults to `80`. |
+For examples, see [here](https://royfrancis.github.io/quarto-revealjs-pointer/).
 
-## Example
+## Acknowledgements
 
-View an example presentation at <https://quarto-ext.github.io/pointer/>. Use the 'q' to enable and disable the pointer.
+Built on [quarto-ext/pointer](https://github.com/quarto-ext/pointer)
+
+---
+
+2026 • Roy Francis

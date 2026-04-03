@@ -1,7 +1,18 @@
 var RevealPointer = (function () {
   "use strict";
 
-  var keyCodes = {
+  var DEFAULT_CONFIG = {
+    key: "q",
+    color: "red",
+    pointerSize: 16,
+    alwaysVisible: false,
+    trail: false,
+    trailDuration: 150,
+    trailSampling: 2,
+    trailMaxPoints: 80,
+  };
+
+  var KEY_CODE_BY_NAME = {
     backspace: 8,
     tab: 9,
     enter: 13,
@@ -11,6 +22,7 @@ var RevealPointer = (function () {
     pausebreak: 19,
     capslock: 20,
     esc: 27,
+    escape: 27,
     space: 32,
     pageup: 33,
     pagedown: 34,
@@ -22,95 +34,150 @@ var RevealPointer = (function () {
     downarrow: 40,
     insert: 45,
     delete: 46,
-    0: 48,
-    1: 49,
-    2: 50,
-    3: 51,
-    4: 52,
-    5: 53,
-    6: 54,
-    7: 55,
-    8: 56,
-    9: 57,
-    a: 65,
-    b: 66,
-    c: 67,
-    d: 68,
-    e: 69,
-    f: 70,
-    g: 71,
-    h: 72,
-    i: 73,
-    j: 74,
-    k: 75,
-    l: 76,
-    m: 77,
-    n: 78,
-    o: 79,
-    p: 80,
-    q: 81,
-    r: 82,
-    s: 83,
-    t: 84,
-    u: 85,
-    v: 86,
-    w: 87,
-    x: 88,
-    y: 89,
-    z: 90,
-    leftwindowkey: 91,
-    rightwindowkey: 92,
-    selectkey: 93,
-    numpad0: 96,
-    numpad1: 97,
-    numpad2: 98,
-    numpad3: 99,
-    numpad4: 100,
-    numpad5: 101,
-    numpad6: 102,
-    numpad7: 103,
-    numpad8: 104,
-    numpad9: 105,
-    multiply: 106,
-    add: 107,
-    subtract: 109,
-    decimalpoint: 110,
-    divide: 111,
-    f1: 112,
-    f2: 113,
-    f3: 114,
-    f4: 115,
-    f5: 116,
-    f6: 117,
-    f7: 118,
-    f8: 119,
-    f9: 120,
-    f10: 121,
-    f11: 122,
-    f12: 123,
-    numlock: 144,
-    scrolllock: 145,
-    semicolon: 186,
-    equalsign: 187,
-    comma: 188,
-    dash: 189,
-    period: 190,
-    forwardslash: 191,
-    graveaccent: 192,
-    openbracket: 219,
-    backslash: 220,
-    closebracket: 221,
-    singlequote: 222,
   };
 
-  return function () {
-    var config = {};
+  var TRANSLATE_RE = /translate\(([-\d.]+)px,\s*([-\d.]+)px\)/;
+  var SCALE_RE = /scale\(([-\d.]+)\)/;
+  var MATRIX_RE = /matrix\(([^)]+)\)/;
+
+  /**
+   * Convert raw plugin config values into a validated configuration object.
+   *
+   * @param {object} rawPointerConfig Pointer config from Reveal/Quarto metadata.
+   * @returns {object} Normalized config with defaults and constraints applied.
+   */
+  function normalizeConfig(rawPointerConfig) {
+    var raw = rawPointerConfig || {};
+    var key = typeof raw.key === "string" ? raw.key.toLowerCase().trim() : "";
+    var pointerSize = Number(raw.pointerSize);
+    var trailDuration = Number(raw.trailDuration);
+    var trailSampling = Number(raw.trailSampling);
+    var trailMaxPoints = Number(raw.trailMaxPoints);
+
+    return {
+      key: key || DEFAULT_CONFIG.key,
+      color: typeof raw.color === "string" ? raw.color : DEFAULT_CONFIG.color,
+      pointerSize:
+        Number.isFinite(pointerSize) && pointerSize > 0
+          ? pointerSize
+          : DEFAULT_CONFIG.pointerSize,
+      alwaysVisible:
+        typeof raw.alwaysVisible === "boolean"
+          ? raw.alwaysVisible
+          : DEFAULT_CONFIG.alwaysVisible,
+      trail: typeof raw.trail === "boolean" ? raw.trail : DEFAULT_CONFIG.trail,
+      trailDuration:
+        Number.isFinite(trailDuration) && trailDuration >= 0
+          ? trailDuration
+          : DEFAULT_CONFIG.trailDuration,
+      trailSampling:
+        Number.isFinite(trailSampling) && trailSampling >= 0
+          ? trailSampling
+          : DEFAULT_CONFIG.trailSampling,
+      trailMaxPoints:
+        Number.isFinite(trailMaxPoints) && trailMaxPoints >= 2
+          ? Math.round(trailMaxPoints)
+          : DEFAULT_CONFIG.trailMaxPoints,
+    };
+  }
+
+  /**
+   * Convert a key label into the key binding shape Reveal.js expects.
+   *
+   * @param {string} key Normalized key name.
+   * @returns {{ key: string, keyCode: number|undefined }} Key binding fields.
+   */
+  function resolveKeyBinding(key) {
+    var normalized = (key || "").toLowerCase();
+
+    if (KEY_CODE_BY_NAME[normalized] != null) {
+      return { key: normalized, keyCode: KEY_CODE_BY_NAME[normalized] };
+    }
+
+    if (normalized.length === 1) {
+      var charCode = normalized.toUpperCase().charCodeAt(0);
+      if (charCode >= 48 && charCode <= 90) {
+        return { key: normalized, keyCode: charCode };
+      }
+    }
+
+    return { key: DEFAULT_CONFIG.key, keyCode: DEFAULT_CONFIG.key.toUpperCase().charCodeAt(0) };
+  }
+
+  /**
+   * Parse a CSS transform string into translate + scale components.
+   * Supports the forms emitted by Reveal.js.
+   *
+   * @param {string} transformValue CSS transform value.
+   * @returns {{ x: number, y: number, scale: number }} Parsed transform.
+   */
+  function parseTransform(transformValue) {
+    var transform = transformValue || "";
+    var translateMatch;
+    var scaleMatch;
+    var matrixMatch;
+    var matrixValues;
+
+    if (!transform || transform === "none") {
+      return { x: 0, y: 0, scale: 1 };
+    }
+
+    translateMatch = TRANSLATE_RE.exec(transform);
+    scaleMatch = SCALE_RE.exec(transform);
+    if (translateMatch || scaleMatch) {
+      return {
+        x: translateMatch ? Number.parseFloat(translateMatch[1]) : 0,
+        y: translateMatch ? Number.parseFloat(translateMatch[2]) : 0,
+        scale: scaleMatch ? Number.parseFloat(scaleMatch[1]) : 1,
+      };
+    }
+
+    matrixMatch = MATRIX_RE.exec(transform);
+    if (matrixMatch) {
+      matrixValues = matrixMatch[1].split(",").map(function (v) {
+        return Number.parseFloat(v.trim());
+      });
+      if (matrixValues.length === 6 && Number.isFinite(matrixValues[0])) {
+        return {
+          x: Number.isFinite(matrixValues[4]) ? matrixValues[4] : 0,
+          y: Number.isFinite(matrixValues[5]) ? matrixValues[5] : 0,
+          scale: matrixValues[0] || 1,
+        };
+      }
+    }
+
+    return { x: 0, y: 0, scale: 1 };
+  }
+
+  /**
+   * Decide if a new trail point should be appended given sampling distance.
+   *
+   * @param {{x:number,y:number}|null} lastPoint Last stored point.
+   * @param {{x:number,y:number}} nextPoint Current pointer location.
+   * @param {number} sampling Minimum point spacing in pixels.
+   * @returns {boolean} Whether to append the point.
+   */
+  function shouldAppendTrailPoint(lastPoint, nextPoint, sampling) {
+    if (!lastPoint) {
+      return true;
+    }
+
+    return (
+      Math.abs(lastPoint.x - nextPoint.x) > sampling ||
+      Math.abs(lastPoint.y - nextPoint.y) > sampling
+    );
+  }
+
+  function createRevealPointerPlugin() {
+    var config = DEFAULT_CONFIG;
+    var keyBinding = resolveKeyBinding(DEFAULT_CONFIG.key);
     var pointerEnabled = false;
     var pointerEl = null;
     var trailCanvas = null;
     var trailCtx = null;
     var frameHandle = null;
     var trailPoints = [];
+    var revealTransform = { x: 0, y: 0, scale: 1 };
 
     var pointerState = {
       x: 0,
@@ -121,108 +188,33 @@ var RevealPointer = (function () {
       hasPosition: false,
     };
 
-    var revealTransform = {
-      x: 0,
-      y: 0,
-      scale: 1,
-    };
-
-    var translateRe = /translate\(([-\d.]+)px,\s*([-\d.]+)px\)/;
-    var scaleRe = /scale\(([-\d.]+)\)/;
-
-    function parseConfig(pluginConfig) {
-      var code;
-      config = pluginConfig.pointer || {};
-
-      if (config.key == null || typeof config.key !== "string") {
-        config.key = "q";
-      } else {
-        config.key = config.key.toLowerCase();
-      }
-
-      if (typeof config.pointerSize !== "number") {
-        config.pointerSize = 12;
-      }
-
-      if (typeof config.color !== "string") {
-        config.color = "red";
-      }
-
-      if (typeof config.alwaysVisible !== "boolean") {
-        config.alwaysVisible = false;
-      }
-
-      if (typeof config.trail !== "boolean") {
-        config.trail = false;
-      }
-
-      if (
-        typeof config.trailDuration !== "number" ||
-        !isFinite(config.trailDuration)
-      ) {
-        config.trailDuration = 150;
-      }
-
-      if (
-        typeof config.trailSampling !== "number" ||
-        !isFinite(config.trailSampling)
-      ) {
-        config.trailSampling = 2;
-      }
-
-      if (
-        typeof config.trailMaxPoints !== "number" ||
-        !isFinite(config.trailMaxPoints)
-      ) {
-        config.trailMaxPoints = 80;
-      }
-
-      config.trailDuration = Math.max(0, config.trailDuration);
-      config.trailSampling = Math.max(0, config.trailSampling);
-      config.trailMaxPoints = Math.max(2, Math.round(config.trailMaxPoints));
-      code = keyCodes[config.key];
-      config.keyCode = code;
+    /** @returns {string} The active Reveal transform value from body styles. */
+    function currentTransformValue() {
+      return window.getComputedStyle(document.body).transform || document.body.style.transform || "";
     }
 
+    /** Recompute Reveal translation and scale so the pointer stays aligned with slides. */
     function updateRevealTransform() {
-      var transform = document.body.style.transform;
-      var translateMatch;
-      var scaleMatch;
-
-      if (transform && transform !== "") {
-        translateMatch = translateRe.exec(transform);
-        scaleMatch = scaleRe.exec(transform);
-
-        revealTransform.x = translateMatch
-          ? Number.parseFloat(translateMatch[1])
-          : 0;
-        revealTransform.y = translateMatch
-          ? Number.parseFloat(translateMatch[2])
-          : 0;
-        revealTransform.scale = scaleMatch
-          ? Number.parseFloat(scaleMatch[1])
-          : 1;
-      } else {
-        revealTransform.x = 0;
-        revealTransform.y = 0;
-        revealTransform.scale = 1;
-      }
+      revealTransform = parseTransform(currentTransformValue());
     }
 
+    /** Update pointer element coordinates, visibility, and size. */
     function renderPointer() {
-      var pointerScale =
-        revealTransform.scale === 1 ? 1 : 1 / revealTransform.scale;
-      pointerEl.style.top =
-        String((pointerState.y - revealTransform.y) / revealTransform.scale) +
-        "px";
-      pointerEl.style.left =
-        String((pointerState.x - revealTransform.x) / revealTransform.scale) +
-        "px";
+      var safeScale = revealTransform.scale || 1;
+      var pointerScale = safeScale === 1 ? 1 : 1 / safeScale;
+
+      if (!pointerEl) {
+        return;
+      }
+
+      pointerEl.style.top = String((pointerState.y - revealTransform.y) / safeScale) + "px";
+      pointerEl.style.left = String((pointerState.x - revealTransform.x) / safeScale) + "px";
       pointerEl.style.opacity = pointerState.isVisible ? "0.8" : "0";
       pointerEl.style.width = String(config.pointerSize * pointerScale) + "px";
       pointerEl.style.height = String(config.pointerSize * pointerScale) + "px";
     }
 
+    /** Create the canvas used for pointer trails if it does not exist. */
     function ensureTrailCanvas() {
       if (trailCanvas) {
         return;
@@ -236,6 +228,7 @@ var RevealPointer = (function () {
       resizeTrailCanvas();
     }
 
+    /** Resize trail canvas to viewport dimensions with device pixel ratio handling. */
     function resizeTrailCanvas() {
       var dpr;
 
@@ -251,6 +244,7 @@ var RevealPointer = (function () {
       trailCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
     }
 
+    /** Remove trail points that are older than the configured duration. */
     function pruneTrail(now) {
       var cutoff = now - config.trailDuration;
       var i = 0;
@@ -263,15 +257,19 @@ var RevealPointer = (function () {
       }
     }
 
+    /**
+     * Insert midpoint samples so trail polygons appear smooth at lower sampling rates.
+     *
+     * @param {Array<{x:number,y:number,time:number}>} points Input points.
+     * @returns {Array<{x:number,y:number,time:number}>} Densified points.
+     */
     function smoothedPoints(points) {
       var dense = [];
       var i;
       var p0;
       var p1;
-      var mx;
-      var my;
 
-      if (points.length === 0) {
+      if (!points.length) {
         return dense;
       }
 
@@ -279,12 +277,9 @@ var RevealPointer = (function () {
       for (i = 1; i < points.length; i += 1) {
         p0 = points[i - 1];
         p1 = points[i];
-        mx = (p0.x + p1.x) * 0.5;
-        my = (p0.y + p1.y) * 0.5;
-
         dense.push({
-          x: mx,
-          y: my,
+          x: (p0.x + p1.x) * 0.5,
+          y: (p0.y + p1.y) * 0.5,
           time: (p0.time + p1.time) * 0.5,
         });
         dense.push(p1);
@@ -293,6 +288,7 @@ var RevealPointer = (function () {
       return dense;
     }
 
+    /** Draw the tapered pointer trail for the current animation frame. */
     function drawTrail(now) {
       var points;
       var pointCount;
@@ -318,6 +314,7 @@ var RevealPointer = (function () {
       var pointData;
       var prevData;
       var currData;
+      var latestPoint;
 
       if (!config.trail || !trailCtx || !trailCanvas) {
         return;
@@ -325,31 +322,20 @@ var RevealPointer = (function () {
 
       trailCtx.clearRect(0, 0, window.innerWidth, window.innerHeight);
 
-      if (
-        !pointerState.isVisible ||
-        !pointerState.hasPosition ||
-        config.trailDuration === 0
-      ) {
+      if (!pointerState.isVisible || !pointerState.hasPosition || config.trailDuration === 0) {
         trailPoints = [];
         return;
       }
 
       pruneTrail(now);
-
-      lastPoint = trailPoints.length
-        ? trailPoints[trailPoints.length - 1]
-        : null;
-      if (
-        !lastPoint ||
-        Math.abs(lastPoint.x - pointerState.clientX) > config.trailSampling ||
-        Math.abs(lastPoint.y - pointerState.clientY) > config.trailSampling
-      ) {
-        trailPoints.push({
-          x: pointerState.clientX,
-          y: pointerState.clientY,
-          time: now,
-        });
-
+      lastPoint = trailPoints.length ? trailPoints[trailPoints.length - 1] : null;
+      latestPoint = {
+        x: pointerState.clientX,
+        y: pointerState.clientY,
+        time: now,
+      };
+      if (shouldAppendTrailPoint(lastPoint, latestPoint, config.trailSampling)) {
+        trailPoints.push(latestPoint);
         if (trailPoints.length > config.trailMaxPoints) {
           trailPoints.splice(0, trailPoints.length - config.trailMaxPoints);
         }
@@ -381,13 +367,7 @@ var RevealPointer = (function () {
           dy = pNext.y - pPrev.y;
         }
 
-        length = Math.sqrt(dx * dx + dy * dy);
-        if (length < 0.001) {
-          dx = 1;
-          dy = 0;
-          length = 1;
-        }
-
+        length = Math.sqrt(dx * dx + dy * dy) || 1;
         nx = -dy / length;
         ny = dx / length;
 
@@ -413,34 +393,24 @@ var RevealPointer = (function () {
 
         trailCtx.globalAlpha = Math.min(prevData.alpha, currData.alpha);
         trailCtx.beginPath();
-        trailCtx.moveTo(
-          prevData.x + prevData.nx * prevData.halfWidth,
-          prevData.y + prevData.ny * prevData.halfWidth,
-        );
-        trailCtx.lineTo(
-          currData.x + currData.nx * currData.halfWidth,
-          currData.y + currData.ny * currData.halfWidth,
-        );
-        trailCtx.lineTo(
-          currData.x - currData.nx * currData.halfWidth,
-          currData.y - currData.ny * currData.halfWidth,
-        );
-        trailCtx.lineTo(
-          prevData.x - prevData.nx * prevData.halfWidth,
-          prevData.y - prevData.ny * prevData.halfWidth,
-        );
+        trailCtx.moveTo(prevData.x + prevData.nx * prevData.halfWidth, prevData.y + prevData.ny * prevData.halfWidth);
+        trailCtx.lineTo(currData.x + currData.nx * currData.halfWidth, currData.y + currData.ny * currData.halfWidth);
+        trailCtx.lineTo(currData.x - currData.nx * currData.halfWidth, currData.y - currData.ny * currData.halfWidth);
+        trailCtx.lineTo(prevData.x - prevData.nx * prevData.halfWidth, prevData.y - prevData.ny * prevData.halfWidth);
         trailCtx.closePath();
         trailCtx.fill();
       }
       trailCtx.globalAlpha = 1;
     }
 
+    /** Animation loop for pointer and trail rendering. */
     function renderFrame(now) {
       renderPointer();
       drawTrail(now || performance.now());
       frameHandle = requestAnimationFrame(renderFrame);
     }
 
+    /** Cancel active animation frame loop if running. */
     function stopFrame() {
       if (frameHandle != null) {
         cancelAnimationFrame(frameHandle);
@@ -448,6 +418,7 @@ var RevealPointer = (function () {
       }
     }
 
+    /** Handle pointer movement updates and recalculate Reveal transforms. */
     function onMouseMove(event) {
       pointerState.x = event.pageX;
       pointerState.y = event.pageY;
@@ -458,13 +429,19 @@ var RevealPointer = (function () {
       renderPointer();
     }
 
+    /** Keep trail canvas in sync with viewport size changes. */
     function onResize() {
       resizeTrailCanvas();
     }
 
+    /**
+     * Enable or disable pointer mode and related event listeners.
+     *
+     * @param {boolean} nextEnabled Target enabled state.
+     */
     function setPointerEnabled(nextEnabled) {
-      pointerEnabled = nextEnabled;
-      pointerState.isVisible = nextEnabled;
+      pointerEnabled = Boolean(nextEnabled);
+      pointerState.isVisible = pointerEnabled;
 
       if (pointerEnabled) {
         document.addEventListener("mousemove", onMouseMove);
@@ -493,14 +470,36 @@ var RevealPointer = (function () {
       }
     }
 
+    /** Toggle pointer mode for keyboard activation workflows. */
     function togglePointer() {
       setPointerEnabled(!pointerEnabled);
+    }
+
+    /** Remove plugin DOM artifacts and listeners for safe reinitialization. */
+    function cleanup() {
+      setPointerEnabled(false);
+
+      if (pointerEl && pointerEl.parentNode) {
+        pointerEl.parentNode.removeChild(pointerEl);
+      }
+      pointerEl = null;
+
+      if (trailCanvas && trailCanvas.parentNode) {
+        trailCanvas.parentNode.removeChild(trailCanvas);
+      }
+      trailCanvas = null;
+      trailCtx = null;
+      trailPoints = [];
+      pointerState.hasPosition = false;
     }
 
     return {
       id: "pointer",
       init: function (deck) {
-        parseConfig(deck.getConfig());
+        var pluginConfig = deck.getConfig() || {};
+
+        config = normalizeConfig(pluginConfig.pointer);
+        keyBinding = resolveKeyBinding(config.key);
 
         pointerEl = document.createElement("div");
         pointerEl.className = "cursor-dot";
@@ -514,18 +513,40 @@ var RevealPointer = (function () {
 
         if (config.alwaysVisible) {
           setPointerEnabled(true);
-        } else {
-          deck.addKeyBinding(
-            {
-              keyCode: config.keyCode,
-              key: config.key,
-            },
-            function () {
-              togglePointer();
-            },
-          );
+          return;
         }
+
+        deck.addKeyBinding(
+          {
+            keyCode: keyBinding.keyCode,
+            key: keyBinding.key,
+          },
+          function () {
+            togglePointer();
+          },
+        );
+      },
+      destroy: function () {
+        cleanup();
       },
     };
+  }
+
+  createRevealPointerPlugin.__internals = {
+    normalizeConfig: normalizeConfig,
+    resolveKeyBinding: resolveKeyBinding,
+    parseTransform: parseTransform,
+    shouldAppendTrailPoint: shouldAppendTrailPoint,
   };
+
+  return createRevealPointerPlugin;
 })();
+
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = {
+    normalizeConfig: RevealPointer.__internals.normalizeConfig,
+    resolveKeyBinding: RevealPointer.__internals.resolveKeyBinding,
+    parseTransform: RevealPointer.__internals.parseTransform,
+    shouldAppendTrailPoint: RevealPointer.__internals.shouldAppendTrailPoint,
+  };
+}

@@ -1,0 +1,41 @@
+project:
+  type: website
+  output-dir: docs
+
+website:
+  title: "pointer"
+  site-url: "https://royfrancis.github.io/quarto-revealjs-pointer/"
+  description: "A Quarto RevealJS extension that adds a customizable pointer to your slides."
+  navbar:
+    left:
+      - href: index.qmd
+        text: Home
+      - text: Demos
+        menu:
+          - href: demo.qmd
+            text: "Basic Trail"
+          - href: demo-key-color-size.qmd
+            text: "Key Color Size"
+          - href: demo-always-visible.qmd
+            text: "Always Visible"
+          - href: demo-trail-dynamics.qmd
+            text: "Trail Dynamics"
+          - href: demo-trail-limit.qmd
+            text: "Trail Max Points"
+    right:
+      - icon: github
+        aria-label: "GitHub"
+        href: https://github.com/royfrancis/quarto-revealjs-pointer
+  page-footer:
+    border: false
+    left: "{{< meta current_year >}} Roy Francis • [MIT License](https://choosealicense.com/licenses/mit/)"
+    right: "Published with [Quarto](https://quarto.org/) v{{< meta quarto_version >}}"
+
+format:
+  html:
+    theme: pulse
+    toc: true
+    title-block-banner: true
+
+filters:
+  - custom.lua

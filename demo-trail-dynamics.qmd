@@ -1,0 +1,42 @@
+---
+title: "Demo: Trail Dynamics"
+subtitle: "Tune trail duration and sampling"
+format:
+  revealjs:
+    pointer:
+      key: "q"
+      color: "#5F3DC4"
+      pointerSize: 18
+      trail: true
+      trailDuration: 350
+      trailSampling: 1
+      trailMaxPoints: 140
+revealjs-plugins:
+  - pointer
+---
+
+## Settings YAML
+
+```yaml
+format:
+  revealjs:
+    pointer:
+      key: "q"
+      color: "#5F3DC4"
+      pointerSize: 18
+      trail: true
+      trailDuration: 350
+      trailSampling: 1
+      trailMaxPoints: 140
+revealjs-plugins:
+  - pointer
+```
+
+- Press `q` to toggle pointer mode
+- Trail is longer and smoother than default
+
+## What To Check
+
+- Low sampling (`1`) captures dense movement points
+- Higher duration (`350`) keeps trail visible longer
+- Trail color follows pointer color

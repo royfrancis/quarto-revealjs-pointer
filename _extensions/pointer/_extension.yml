@@ -1,6 +1,6 @@
-title: Pointer
-author: Posit Software, PBC
-version: 0.1.1
+title: pointer
+author: Roy Francis
+version: 0.1.2
 quarto-required: ">=1.2.198"
 contributes:
   revealjs-plugins:

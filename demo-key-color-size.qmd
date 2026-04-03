@@ -1,0 +1,36 @@
+---
+title: "Demo: Key, Color, Size"
+subtitle: "Toggle key and visual pointer parameters"
+format:
+  revealjs:
+    pointer:
+      key: "w"
+      color: "#0B7285"
+      pointerSize: 22
+      trail: false
+revealjs-plugins:
+  - pointer
+---
+
+## Settings YAML
+
+```yaml
+format:
+  revealjs:
+    pointer:
+      key: "w"
+      color: "#0B7285"
+      pointerSize: 22
+      trail: false
+revealjs-plugins:
+  - pointer
+```
+
+- Press `w` to toggle pointer mode
+- Pointer is larger and cyan-toned
+
+## What To Check
+
+- Key binding changes from default `q` to `w`
+- Pointer color and size are applied
+- No trail should be visible

@@ -1,0 +1,29 @@
+---
+title: "Demo: Always Visible"
+subtitle: "Pointer remains active throughout presentation"
+format:
+  revealjs:
+    pointer:
+      alwaysVisible: true
+revealjs-plugins:
+  - pointer
+---
+
+## Settings YAML
+
+```yaml
+format:
+  revealjs:
+    pointer:
+      alwaysVisible: true
+revealjs-plugins:
+  - pointer
+```
+
+- Pointer should be visible immediately
+- No keyboard toggle is required
+
+## What To Check
+
+- Cursor should be hidden and replaced by pointer
+- Pointer remains visible across slide changes

@@ -1,0 +1,42 @@
+---
+title: "Demo: Trail Max Points"
+subtitle: "Compare shorter trail memory limits"
+format:
+  revealjs:
+    pointer:
+      key: "q"
+      color: "#2F9E44"
+      pointerSize: 18
+      trail: true
+      trailDuration: 300
+      trailSampling: 2
+      trailMaxPoints: 25
+revealjs-plugins:
+  - pointer
+---
+
+## Settings YAML
+
+```yaml
+format:
+  revealjs:
+    pointer:
+      key: "q"
+      color: "#2F9E44"
+      pointerSize: 18
+      trail: true
+      trailDuration: 300
+      trailSampling: 2
+      trailMaxPoints: 25
+revealjs-plugins:
+  - pointer
+```
+
+- Press `q` to toggle pointer mode
+- Trail is intentionally shorter due to point cap
+
+## What To Check
+
+- Trail appears truncated during fast movement
+- Memory and rendering pressure are lower
+- Effect of `trailMaxPoints` is easy to observe

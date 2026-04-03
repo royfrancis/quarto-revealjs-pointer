@@ -1,0 +1,42 @@
+---
+title: "pointer"
+---
+
+![](preview.webp)
+
+A Quarto extension that adds an on-slide presenter pointer for revealjs decks.
+
+## Install
+
+```bash
+quarto add royfrancis/quarto-revealjs-pointer
+```
+
+## Features
+
+- Laser pointer style interaction for engaging presentations
+- Optional smooth trail for drawing attention
+- Configurable key, color, and pointer size
+
+## Quick Start
+
+```yaml
+format:
+  revealjs:
+    pointer:
+      key: "q"
+      color: "tomato"
+      pointerSize: 18
+      trail: true
+revealjs-plugins:
+  - pointer
+```
+
+## Demo Pages
+
+- [Basic Trail Demo](demo.qmd)
+- [Key, Color, Size](demo-key-color-size.qmd)
+- [Always Visible](demo-always-visible.qmd)
+- [Trail Dynamics](demo-trail-dynamics.qmd)
+- [Trail Max Points](demo-trail-limit.qmd)
+

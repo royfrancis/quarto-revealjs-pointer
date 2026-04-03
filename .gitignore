@@ -1,3 +1,9 @@
 
 example_files/libs
 example.html
+_site/
+.quarto/
+node_modules/
+/.quarto/
+**/*.quarto_ipynb
+docs

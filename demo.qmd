@@ -1,0 +1,48 @@
+---
+title: "Pointer Demo"
+subtitle: "Revealjs presentation with configurable pointer"
+format:
+  revealjs:
+    pointer:
+      trail: true
+revealjs-plugins:
+  - pointer
+---
+
+## Settings YAML
+
+```yaml
+format:
+  revealjs:
+    pointer:
+      trail: true
+revealjs-plugins:
+  - pointer
+```
+
+- Toggle Pointer: Press `q` to toggle pointer mode
+- Trail Enabled: Move the pointer quickly to see the trail taper over time
+
+## Cursor Smoke Test
+
+Toggle pointer mode with `q`, then move across each interactive element
+
+::: {.columns}
+::: {.column width="50%"}
+
+- [External link target](https://quarto.org/)
+- Inline code span: `hover check`
+- Button: <button type="button">Test Button</button>
+- Input: <input type="text" placeholder="Test input" value="editable field" />
+
+:::
+::: {.column width="50%"}
+
+**Expected Behavior**
+
+- System cursor should stay hidden over all elements during pointer mode
+- Custom pointer dot should remain visible and aligned
+- When pointer mode is off, normal cursor behavior should return
+
+:::
+:::

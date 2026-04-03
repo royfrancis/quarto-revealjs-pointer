@@ -1,5 +1,4 @@
-.cursor-dot,
-.cursor-dot-outline {
+.cursor-dot {
   pointer-events: none;
   position: absolute;
   top: 0;
@@ -18,12 +17,11 @@
   z-index: 99;
 }
 .no-cursor {
-  cursor: none;
+  cursor: none !important;
 }
-.no-cursor a,
-.no-cursor div,
-.no-cursor span {
-  cursor: none;
+
+.no-cursor * {
+  cursor: none !important;
 }
 
 .pointer-trail {
