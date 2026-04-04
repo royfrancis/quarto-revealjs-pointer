@@ -22,6 +22,8 @@ website:
             text: "Trail Dynamics"
           - href: demo-trail-limit.qmd
             text: "Trail Max Points"
+      - href: changelog.md
+        text: Versions
     right:
       - icon: github
         aria-label: "GitHub"
